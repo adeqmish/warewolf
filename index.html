@@ -1,329 +1,57 @@
-<!DOCTYPE html>
-<html lang="ms">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Werewolf (Offline / Local Play)</title>
-  <style>
-    :root{--bg:#0b1020;--panel:#121833;--muted:#94a3b8;--text:#e2e8f0;--accent:#22c55e;--danger:#ef4444;--warn:#f59e0b;--card:#0f172a}
-    *{box-sizing:border-box}
-    body{margin:0;background:radial-gradient(1000px 500px at 50% -200px,#1e293b,var(--bg));color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
-    .wrap{max-width:1100px;margin:auto;padding:24px}
-    h1{font-size:clamp(20px,4vw,34px);margin:0 0 8px}
-    .sub{color:var(--muted);margin-bottom:18px}
-    .grid{display:grid;gap:16px}
-    @media(min-width:900px){.grid-2{grid-template-columns:1.1fr .9fr}}
-    .card{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));border:1px solid rgba(148,163,184,.15);border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-    .card h2{font-size:18px;margin:0 0 8px}
-    .card .hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-    .card .bd{padding:16px}
-    .row{display:flex;gap:8px;align-items:center}
-    .row.wrap{flex-wrap:wrap}
-    input[type="text"],input[type="number"],select,button,textarea{background:#0b1325;color:var(--text);border:1px solid rgba(148,163,184,.25);border-radius:12px;padding:10px 12px}
-    input[type="number"]{width:76px}
-    button{cursor:pointer}
-    .btn{padding:10px 14px;border-radius:12px;border:1px solid rgba(148,163,184,.25)}
-    .btn.primary{background:var(--accent);color:#052e16;border-color:transparent;font-weight:600}
-    .btn.ghost{background:transparent}
-    .btn.warn{background:var(--warn);color:#3b2410;border-color:transparent}
-    .btn.danger{background:var(--danger);color:#3b0a0a;border-color:transparent}
-    .muted{color:var(--muted)}
-    .tag{padding:4px 8px;border-radius:999px;border:1px solid rgba(148,163,184,.25);font-size:12px;color:var(--muted)}
-    .list{display:grid;gap:8px}
-    .li{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--card);border-radius:12px;border:1px solid rgba(148,163,184,.15)}
-    .role{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid rgba(148,163,184,.25);background:#0b1325}
-    .role b{letter-spacing:.3px}
-    .role.wr{border-color:rgba(239,68,68,.6);box-shadow:inset 0 0 0 1px rgba(239,68,68,.2)}
-    .role.vl{border-color:rgba(34,197,94,.6);box-shadow:inset 0 0 0 1px rgba(34,197,94,.2)}
-    .role.se{border-color:rgba(59,130,246,.6);box-shadow:inset 0 0 0 1px rgba(59,130,246,.2)}
-    .role.dc{border-color:rgba(245,158,11,.7);box-shadow:inset 0 0 0 1px rgba(245,158,11,.25)}
-    .role.hu{border-color:rgba(244,63,94,.7);box-shadow:inset 0 0 0 1px rgba(244,63,94,.25)}
-    .cols{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-    .pill{display:inline-flex;gap:6px;align-items:center;padding:6px 10px;border-radius:999px;background:#0b1325;border:1px solid rgba(148,163,184,.25)}
-    .ghostinput{width:100%;background:#0b1325;border:1px dashed rgba(148,163,184,.35)}
-    .small{font-size:12px}
-    .peek{position:relative}
-    .peek .mask{position:absolute;inset:0;border-radius:10px;backdrop-filter:blur(8px);background:rgba(2,6,23,.72);display:flex;align-items:center;justify-content:center;opacity:1;transition:.15s}
-    .peek.revealed .mask{opacity:0;pointer-events:none}
-    .kbd{font-family:ui-monospace,Menlo,Monaco,Consolas,monospace;font-size:12px;border:1px solid rgba(148,163,184,.3);background:#0b1325;padding:2px 6px;border-radius:6px;color:var(--muted)}
-    .footer{margin-top:22px;color:var(--muted);font-size:13px}
-    .stack{display:flex;flex-direction:column;gap:8px}
-    .spacer{height:8px}
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <h1>Werewolf (Offline / Local Play)</h1>
-    <div class="sub">Guna satu laman web ni je untuk geng office main tanpa server. Host kat GitHub Pages pun boleh. Semua logik jalan dalam browser (client‑side).</div>
-
-    <div class="grid grid-2">
-      <!-- Players -->
-      <section class="card">
-        <div class="bd">
-          <div class="hd">
-            <h2>Pemain</h2>
-            <div class="tag" id="playerCount">0 pemain</div>
-          </div>
-          <div class="row wrap">
-            <input id="newPlayer" type="text" placeholder="Nama pemain…" />
-            <button class="btn" onclick="addPlayer()">Tambah</button>
-            <button class="btn ghost" onclick="addQuick(6)">+6 cepat</button>
-            <button class="btn ghost" onclick="shufflePlayers()">Kocok Senarai</button>
-            <button class="btn danger" onclick="clearPlayers()">Buang Semua</button>
-          </div>
-          <div class="spacer"></div>
-          <div id="players" class="list"></div>
-        </div>
-      </section>
-
-      <!-- Roles setup -->
-      <section class="card">
-        <div class="bd">
-          <div class="hd"><h2>Peranan</h2><div class="tag" id="roleTotal">0 kad</div></div>
-          <div class="stack">
-            <div class="row">
-              <span class="role wr"><span>🧛‍♂️</span><b>Werewolf</b></span>
-              <input id="r_werewolf" type="number" min="1" value="2" />
-            </div>
-            <div class="row">
-              <span class="role vl"><span>🧑‍🌾</span><b>Villager</b></span>
-              <input id="r_villager" type="number" min="0" value="0" />
-              <span class="small muted">(auto isi ikut jumlah pemain)</span>
-            </div>
-            <div class="row">
-              <span class="role se"><span>🔮</span><b>Seer</b></span>
-              <input id="r_seer" type="number" min="0" value="1" />
-            </div>
-            <div class="row">
-              <span class="role dc"><span>🩺</span><b>Doctor</b></span>
-              <input id="r_doctor" type="number" min="0" value="1" />
-            </div>
-            <div class="row">
-              <span class="role hu"><span>🏹</span><b>Hunter</b></span>
-              <input id="r_hunter" type="number" min="0" value="0" />
-            </div>
-          </div>
-          <div class="spacer"></div>
-          <div class="row wrap">
-            <button class="btn ghost" onclick="balanceVillagers()">Auto Balance Villager</button>
-            <button class="btn warn" onclick="preset(6)">Preset 6p</button>
-            <button class="btn warn" onclick="preset(8)">Preset 8p</button>
-            <button class="btn warn" onclick="preset(10)">Preset 10p</button>
-          </div>
-        </div>
-      </section>
-    </div>
-
-    <!-- Actions -->
-    <div class="card" style="margin-top:16px">
-      <div class="bd">
-        <div class="row wrap">
-          <button class="btn primary" onclick="startGame()">Mula Game & Agih Peranan</button>
-          <button class="btn ghost" onclick="resetGame()">Reset</button>
-          <div class="tag">Tip: Set nama pemain dulu → pilih bilangan peranan → <b>Mula Game</b>.</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Reveal / Play Table -->
-    <section class="card" style="margin-top:16px">
-      <div class="bd">
-        <div class="hd"><h2>Pendedahan Peranan</h2><div class="tag">Tekan & tahan atau klik untuk lihat</div></div>
-        <div id="reveal" class="list"></div>
-        <div class="footer">Privasi: setiap kad ada <span class="kbd">tekan & tahan</span> untuk intai sekejap (blur mask). Pelayan boleh lihat status siapa sudah tengok.</div>
-      </div>
-    </section>
-
-    <!-- Night / Day helpers (manual) -->
-    <section class="card" style="margin-top:16px">
-      <div class="bd">
-        <div class="hd"><h2>Panduan Fasa (Manual)</h2><span class="tag">Opsyenal</span></div>
-        <ol>
-          <li><b>Malam</b>: Werewolf pilih mangsa (bisik / chat luar). Doctor pilih siapa nak lindung. Seer pilih seorang untuk intai.</li>
-          <li><b>Pagi</b>: Umumkan mangsa (jika tidak dilindungi). Perbincangan & undi gantung.</li>
-          <li>Ulang hingga salah satu pihak menang: <i>Werewolf habis</i> atau <i>Werewolf ≥ Villager</i>.</li>
-        </ol>
-      </div>
-    </section>
-
-    <div class="footer">Dibina untuk GitHub Pages (statik). Semua data berada dalam memori pelayar – reload akan reset.</div>
-  </div>
-
 <script>
-  const $ = (q)=>document.querySelector(q);
-  const el = (tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt)e.textContent=txt;return e};
-  let players=[]; // {id,name}
-  let assignments=[]; // {playerId, role, revealed:false}
+const ENDPOINT = "PASTE_APPS_SCRIPT_WEB_APP_URL_HERE";
 
-  function renderPlayers(){
-    const list=$('#players');
-    list.innerHTML='';
-    players.forEach((p,i)=>{
-      const li=el('div','li');
-      const left=el('div','row');
-      left.append(el('span','tag',String(i+1).padStart(2,'0')));
-      const name=el('input');
-      name.type='text'; name.value=p.name; name.oninput=(e)=>{p.name=e.target.value;};
-      name.className='ghostinput'; name.style.maxWidth='420px';
-      left.append(name);
-      li.append(left);
-      const right=el('div','row');
-      const up=el('button','btn ghost','↑'); up.onclick=()=>{ if(i>0){[players[i-1],players[i]]=[players[i],players[i-1]]; renderPlayers(); updateCounts();}};
-      const down=el('button','btn ghost','↓'); down.onclick=()=>{ if(i<players.length-1){[players[i+1],players[i]]=[players[i],players[i+1]]; renderPlayers(); updateCounts();}};
-      const del=el('button','btn danger','Buang'); del.onclick=()=>{ players.splice(i,1); renderPlayers(); updateCounts(); };
-      right.append(up,down,del);
-      li.append(right);
-      list.append(li);
-    });
-    $('#playerCount').textContent=players.length+" pemain";
-    balanceVillagers(false);
-  }
+// Helper POST JSON
+async function api(action, payload={}){
+  const res = await fetch(ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action, ...payload}) });
+  return res.json();
+}
 
-  function addPlayer(){
-    const name=$('#newPlayer').value.trim();
-    if(!name) return;
-    players.push({id:crypto.randomUUID(),name});
-    $('#newPlayer').value='';
-    renderPlayers();
-  }
+// Host create room
+async function createRoom(){
+  const r = await api('createRoom', {});
+  // simpan hostKey untuk host sahaja
+  localStorage.setItem('roomCode', r.roomCode);
+  localStorage.setItem('hostKey', r.hostKey);
+  console.log('room', r);
+}
 
-  function addQuick(n=6){
-    const start=players.length;
-    for(let i=0;i<n;i++) players.push({id:crypto.randomUUID(),name:'Player '+(start+i+1)});
-    renderPlayers();
-  }
+// Player join
+async function join(name, roomCode){
+  const r = await api('join', {roomCode, name});
+  localStorage.setItem('playerId', r.playerId);
+  console.log('joined', r);
+}
 
-  function shufflePlayers(){
-    for(let i=players.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[players[i],players[j]]=[players[j],players[i]]}
-    renderPlayers();
-  }
+// Host start
+async function startGame(){
+  const roomCode = localStorage.getItem('roomCode');
+  const hostKey = localStorage.getItem('hostKey');
+  const r = await api('start', {roomCode, hostKey});
+  console.log('started', r);
+}
 
-  function clearPlayers(){ players=[]; renderPlayers(); }
-
-  function getRoleCounts(){
-    return {
-      werewolf: Math.max(0, parseInt($('#r_werewolf').value||0)),
-      villager: Math.max(0, parseInt($('#r_villager').value||0)),
-      seer: Math.max(0, parseInt($('#r_seer').value||0)),
-      doctor: Math.max(0, parseInt($('#r_doctor').value||0)),
-      hunter: Math.max(0, parseInt($('#r_hunter').value||0)),
-    };
-  }
-
-  function roleDeck(){
-    const c=getRoleCounts();
-    const deck=[];
-    const push=(r,n)=>{for(let i=0;i<n;i++) deck.push(r)};
-    push('Werewolf',c.werewolf);
-    push('Seer',c.seer);
-    push('Doctor',c.doctor);
-    push('Hunter',c.hunter);
-    // Villager will be filled to match players length
-    const current=deck.length;
-    const target=players.length;
-    const need=Math.max(0, target - current);
-    push('Villager', c.villager>0?c.villager:need);
-    // If villager specified and deck still not equal players, trim/extend
-    while(deck.length<players.length) deck.push('Villager');
-    while(deck.length>players.length) deck.pop();
-    // shuffle
-    for(let i=deck.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[deck[i],deck[j]]=[deck[j],deck[i]]}
-    return deck;
-  }
-
-  function balanceVillagers(setInput=true){
-    const c=getRoleCounts();
-    const specials=c.werewolf + c.seer + c.doctor + c.hunter;
-    let villNeed=Math.max(0, players.length - specials);
-    if(setInput) $('#r_villager').value=villNeed;
-    updateCounts();
-  }
-
-  function preset(n){
-    // Simple recommended presets
-    const map={
-      6:{werewolf:2,seer:1,doctor:1,hunter:0},
-      8:{werewolf:2,seer:1,doctor:1,hunter:1},
-      10:{werewolf:3,seer:1,doctor:1,hunter:1},
-    };
-    const p=map[n]; if(!p) return;
-    $('#r_werewolf').value=p.werewolf;
-    $('#r_seer').value=p.seer;
-    $('#r_doctor').value=p.doctor;
-    $('#r_hunter').value=p.hunter;
-    balanceVillagers();
-  }
-
-  function updateCounts(){
-    const c=getRoleCounts();
-    const total=c.werewolf+c.villager+c.seer+c.doctor+c.hunter;
-    $('#roleTotal').textContent=total+" kad";
-  }
-
-  function startGame(){
-    if(players.length<3) return alert('Tambah sekurang-kurangnya 3 pemain.');
-    const deck=roleDeck();
-    if(deck.length!==players.length) return alert('Jumlah kad tidak sama dengan jumlah pemain. Semak tetapan peranan.');
-    assignments = players.map((p,i)=>({playerId:p.id, role:deck[i], revealed:false}));
-    renderReveal();
-    window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
-  }
-
-  function resetGame(){ assignments=[]; renderReveal(); }
-
-  function roleBadge(role){
-    const map={Werewolf:'wr',Villager:'vl',Seer:'se',Doctor:'dc',Hunter:'hu'};
-    const cls=map[role]||'';
-    const emoji={Werewolf:'🧛‍♂️',Villager:'🧑‍🌾',Seer:'🔮',Doctor:'🩺',Hunter:'🏹'}[role]||'🎴';
-    const span=el('span','role '+cls);
-    const e=el('span'); e.textContent=emoji; span.append(e);
-    span.append(el('b','',role));
-    return span;
-  }
-
-  function renderReveal(){
-    const box=$('#reveal'); box.innerHTML='';
-    if(assignments.length===0){
-      const empty=el('div','muted','Belum ada agihan. Klik "Mula Game" selepas isi pemain & peranan.');
-      box.append(empty); return;
+// Poll state (setInterval)
+let pollTimer=null;
+function beginPoll(roomCode){
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer=setInterval(async ()=>{
+    const r = await api('getState', {roomCode});
+    if(r.ok){
+      // r.state.room.status, r.state.players = [{name, role, alive, ...}]
+      // Penting: role HANYA paparkan kepada player tertentu (di client) kalau anda mahu privacy.
+      // Cara: simpankan role hanya di server & beri kepada client ikut playerId (perlu tambah endpoint khusus).
+      renderState(r.state);
     }
-    assignments.forEach(a=>{
-      const p=players.find(x=>x.id===a.playerId);
-      const li=el('div','li');
-      const name=el('div'); name.innerHTML='<b>'+escapeHTML(p.name)+'</b>';
-      const status=el('span','tag'); status.textContent=a.revealed?'Sudah lihat':'Belum lihat';
-      const left=el('div','row'); left.append(name,status);
-      li.append(left);
+  }, 1200); // 1.2s
+}
 
-      const card=el('div','peek');
-      card.style.position='relative'; card.style.width='280px';
-      const inner=el('div','li'); inner.style.justifyContent='center'; inner.style.gap='8px'; inner.style.background='#0b1325';
-      inner.append(roleBadge(a.role));
-      const mask=el('div','mask'); mask.innerHTML='<div class="muted">Tekan & tahan / klik untuk intai</div>';
-      card.append(inner,mask);
+// Contoh update (host bunuh player / tukar fasa)
+async function setDay(){ await api('update', {roomCode: localStorage.getItem('roomCode'), hostKey: localStorage.getItem('hostKey'), status:'day'}); }
+async function kill(pid){ await api('update', {roomCode: localStorage.getItem('roomCode'), hostKey: localStorage.getItem('hostKey'), killPlayerId: pid}); }
 
-      let holdTimer=null; let revealed=false;
-      const show=()=>{card.classList.add('revealed'); revealed=true;};
-      const hide=()=>{card.classList.remove('revealed'); revealed=false;};
-      const commitSeen=()=>{ if(!a.revealed){ a.revealed=true; status.textContent='Sudah lihat'; } };
-
-      card.addEventListener('pointerdown',()=>{ show(); holdTimer=setTimeout(commitSeen,300);});
-      card.addEventListener('pointerup',()=>{ hide(); clearTimeout(holdTimer);});
-      card.addEventListener('pointerleave',()=>{ hide(); clearTimeout(holdTimer);});
-      card.addEventListener('click',()=>{ // toggle for mouse users
-        if(revealed){ hide(); } else { show(); commitSeen(); }
-      });
-
-      const right=el('div','row'); right.append(card);
-      li.append(right);
-      box.append(li);
-    });
-  }
-
-  function escapeHTML(s){return s.replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]))}
-
-  // Init
-  renderPlayers(); updateCounts();
+function renderState(state){
+  console.log(state);
+  // TODO: kemaskini UI — senarai pemain, hidup/mati, status day/night, dsb
+}
 </script>
-</body>
-</html>
