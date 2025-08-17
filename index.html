@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Werewolf Online (Sheets)</title>
+  <title>Werewolf Online (Sheets, JSONP)</title>
   <style>
     :root{--bg:#0b1020;--card:#0f172a;--muted:#94a3b8;--text:#e2e8f0;--accent:#22c55e;--danger:#ef4444;--warn:#f59e0b}
     *{box-sizing:border-box}
@@ -33,8 +33,8 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>Werewolf Online (Sheets)</h1>
-    <div class="sub">Masukkan URL Apps Script → Host cipta room → Pemain join → Host mula game → Poll state.</div>
+    <h1>Werewolf Online (Sheets, JSONP)</h1>
+    <div class="sub">Masukkan URL Web App (Apps Script) → Host cipta room → Pemain join → Host mula game → Poll state. (JSONP — tiada CORS)</div>
 
     <div class="card"><div class="bd">
       <div class="row">
@@ -94,21 +94,27 @@ const $ = (q)=>document.querySelector(q);
 $('#endpoint').value = ENDPOINT;
 function saveEndpoint(){ ENDPOINT=$('#endpoint').value.trim(); localStorage.setItem('endpoint', ENDPOINT); alert('Endpoint disimpan'); }
 
-// IMPORTANT: text/plain to avoid preflight CORS in Apps Script
-async function api(action, payload={}){
-  if(!ENDPOINT) throw new Error('Setkan Apps Script URL dahulu');
-  const res = await fetch(ENDPOINT, {
-    method:'POST',
-    headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-    body: JSON.stringify({action, ...payload})
+// === JSONP helper (elak CORS): tambah <script src=...callback=cb> ===
+let __cbSeq = 0;
+function jsonp(action, params={}){
+  return new Promise((resolve,reject)=>{
+    if(!ENDPOINT) return reject(new Error('Setkan Apps Script URL dahulu'));
+    const cb = `__cb_${Date.now()}_${++__cbSeq}`;
+    const qs = new URLSearchParams({ action, ...params, callback: cb }).toString();
+    const url = ENDPOINT + (ENDPOINT.includes('?')?'&':'?') + qs;
+    const s = document.createElement('script');
+    s.src = url; s.async = true;
+    const timer = setTimeout(()=>{ cleanup(); reject(new Error('Timeout JSONP')); }, 15000);
+    function cleanup(){ try{ delete window[cb]; }catch(_){}; s.remove(); clearTimeout(timer); }
+    window[cb] = (data)=>{ cleanup(); resolve(data); };
+    s.onerror = ()=>{ cleanup(); reject(new Error('JSONP load error')); };
+    document.head.appendChild(s);
   });
-  let data=null; try{ data = await res.json(); }catch(e){ const t=await res.text(); throw new Error('Gagal parse JSON: '+t.slice(0,200)); }
-  return data;
 }
 
 // Host
 async function createRoom(){
-  const r = await api('createRoom', {});
+  const r = await jsonp('createRoom', {});
   if(!r.ok){ alert(r.error||'Ralat'); return; }
   localStorage.setItem('roomCode', r.roomCode);
   localStorage.setItem('hostKey', r.hostKey);
@@ -119,14 +125,14 @@ async function createRoom(){
 async function startGame(){
   const roomCode = localStorage.getItem('roomCode');
   const hostKey = localStorage.getItem('hostKey');
-  const r = await api('start', {roomCode, hostKey});
+  const r = await jsonp('start', {roomCode, hostKey});
   if(!r.ok){ alert(r.error||'Ralat'); return; }
 }
-async function setDay(){ await api('update', {roomCode:localStorage.getItem('roomCode'), hostKey:localStorage.getItem('hostKey'), status:'day'}); }
-async function setNight(){ await api('update', {roomCode:localStorage.getItem('roomCode'), hostKey:localStorage.getItem('hostKey'), status:'night'}); }
+async function setDay(){ await jsonp('update', {roomCode:localStorage.getItem('roomCode'), hostKey:localStorage.getItem('hostKey'), status:'day'}); }
+async function setNight(){ await jsonp('update', {roomCode:localStorage.getItem('roomCode'), hostKey:localStorage.getItem('hostKey'), status:'night'}); }
 async function killSelected(){
   const pid = $('#killSelect').value; if(!pid) return;
-  await api('update', {roomCode:localStorage.getItem('roomCode'), hostKey:localStorage.getItem('hostKey'), killPlayerId:pid});
+  await jsonp('update', {roomCode:localStorage.getItem('roomCode'), hostKey:localStorage.getItem('hostKey'), killPlayerId:pid});
 }
 
 // Player
@@ -134,7 +140,7 @@ async function join(){
   const roomCode = $('#joinRoom').value.trim().toUpperCase();
   const name = $('#playerName').value.trim();
   if(!roomCode || !name) return alert('Isi room code & nama.');
-  const r = await api('join', {roomCode, name});
+  const r = await jsonp('join', {roomCode, name});
   if(!r.ok){ alert(r.error||'Ralat'); return; }
   localStorage.setItem('playerId', r.playerId);
   localStorage.setItem('roomCode', roomCode);
@@ -144,7 +150,7 @@ async function revealMyRole(){
   const roomCode = localStorage.getItem('roomCode');
   const playerId = localStorage.getItem('playerId');
   if(!roomCode||!playerId) return alert('Join dahulu.');
-  const r = await api('getMyRole', {roomCode, playerId});
+  const r = await jsonp('getMyRole', {roomCode, playerId});
   if(!r.ok){ alert(r.error||'Ralat'); return; }
   showRole(r.role||'');
 }
@@ -156,7 +162,7 @@ function showRole(role){
 // Polling
 let pollTimer=null;
 function beginPollPrompt(){ const rc = prompt('Room code?', localStorage.getItem('roomCode')||''); if(!rc) return; beginPoll(rc); }
-function beginPoll(roomCode){ stopPoll(); pollTimer=setInterval(async ()=>{ const r = await api('getState', {roomCode}); if(r.ok) renderState(r.state); }, 1200); }
+function beginPoll(roomCode){ stopPoll(); pollTimer=setInterval(async ()=>{ const r = await jsonp('getState', {roomCode}); if(r.ok) renderState(r.state); }, 1200); }
 function stopPoll(){ if(pollTimer){ clearInterval(pollTimer); pollTimer=null; } }
 
 function renderState(state){
