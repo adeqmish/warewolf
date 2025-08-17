@@ -34,14 +34,14 @@
 <body>
   <div class="wrap">
     <h1>Werewolf Online (Sheets)</h1>
-    <div class="sub">Isi URL Apps Script → Host cipta room → pemain join → Host mulakan → Semua poll state live.</div>
+    <div class="sub">Masukkan URL Apps Script → Host cipta room → Pemain join → Host mula game → Poll state.</div>
 
     <div class="card"><div class="bd">
       <div class="row">
         <label>Apps Script URL</label>
         <input id="endpoint" placeholder="https://script.google.com/macros/s/AKfycb.../exec" style="min-width:340px" />
         <button class="btn" onclick="saveEndpoint()">Simpan</button>
-        <span class="tag">Disimpan dalam pelayar ini</span>
+        <span class="tag">Disimpan di pelayar ini</span>
       </div>
     </div></div>
 
@@ -61,7 +61,7 @@
         <button class="btn danger" onclick="killSelected()">Bunuh</button>
       </div>
       <div class="hr"></div>
-      <div>Host Key (disimpan di pelayar ini): <code id="hostKey">-</code></div>
+      <div>Host Key (disimpan tempatan): <code id="hostKey">-</code></div>
     </div></div>
 
     <div class="card"><div class="bd">
@@ -94,10 +94,16 @@ const $ = (q)=>document.querySelector(q);
 $('#endpoint').value = ENDPOINT;
 function saveEndpoint(){ ENDPOINT=$('#endpoint').value.trim(); localStorage.setItem('endpoint', ENDPOINT); alert('Endpoint disimpan'); }
 
+// IMPORTANT: text/plain to avoid preflight CORS in Apps Script
 async function api(action, payload={}){
   if(!ENDPOINT) throw new Error('Setkan Apps Script URL dahulu');
-  const res = await fetch(ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action, ...payload}) });
-  return res.json();
+  const res = await fetch(ENDPOINT, {
+    method:'POST',
+    headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+    body: JSON.stringify({action, ...payload})
+  });
+  let data=null; try{ data = await res.json(); }catch(e){ const t=await res.text(); throw new Error('Gagal parse JSON: '+t.slice(0,200)); }
+  return data;
 }
 
 // Host
